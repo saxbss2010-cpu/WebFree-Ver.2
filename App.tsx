@@ -1,4 +1,5 @@
-import React, { useContext } from 'react';
+
+import React, { useContext, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppContext } from './contexts/AppContext';
 import Header from './components/Header';
@@ -10,9 +11,21 @@ import Toast from './components/Toast';
 import Notifications from './components/Notifications';
 import Settings from './components/Settings';
 import Messages from './components/Messages';
+import Support from './components/Support';
 
 const App: React.FC = () => {
-  const { currentUser } = useContext(AppContext);
+  const { currentUser, users, logout, showToast } = useContext(AppContext);
+
+  // Effect to kick banned users who are currently logged in
+  useEffect(() => {
+    if (currentUser) {
+        const freshUser = users.find(u => u.id === currentUser.id);
+        if (freshUser && freshUser.isBanned) {
+            logout();
+            showToast('Your session has ended because your account was banned.', 'error');
+        }
+    }
+  }, [currentUser, users, logout, showToast]);
 
   return (
     <HashRouter>
@@ -27,6 +40,7 @@ const App: React.FC = () => {
             <Route path="/settings" element={currentUser ? <Settings /> : <Navigate to="/login" />} />
             <Route path="/messages" element={currentUser ? <Messages /> : <Navigate to="/login" />} />
             <Route path="/messages/:username" element={currentUser ? <Messages /> : <Navigate to="/login" />} />
+            <Route path="/support" element={<Support />} />
             <Route path="/" element={<Feed />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>

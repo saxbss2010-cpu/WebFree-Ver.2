@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 // FIX: Import the Message type for the new messaging feature.
 import { User, Post, Comment, Notification, Message } from '../types';
@@ -54,6 +55,7 @@ interface AppContextType {
   messages: Message[];
   sendMessage: (recipientId: string, text: string) => void;
   markMessagesAsRead: (senderId: string) => void;
+  toggleUserBan: (userId: string) => void;
 }
 
 export const AppContext = createContext<AppContextType>(null!);
@@ -84,6 +86,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const login = (email: string, passwordHash: string): boolean => {
     const user = users.find(u => u.email === email && u.passwordHash === passwordHash);
     if (user) {
+      if (user.isBanned) {
+        showToast('Your account has been banned.', 'error');
+        return false;
+      }
       setCurrentUser(user);
       showToast('Login successful!', 'success');
       return true;
@@ -112,6 +118,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       followers: [],
       favorites: [],
       role: 'user',
+      isBanned: false,
     };
     setUsers(prev => [...prev, newUser]);
     setCurrentUser(newUser);
@@ -426,6 +433,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       )
     );
   };
+  
+  const toggleUserBan = (userId: string) => {
+    if (!currentUser || currentUser.role !== 'admin') {
+         showToast('Unauthorized', 'error');
+         return;
+    }
+    if (userId === currentUser.id) {
+        showToast('You cannot ban yourself', 'error');
+        return;
+    }
+    
+    let isBanned = false;
+    
+    setUsers(prevUsers => {
+        return prevUsers.map(user => {
+            if (user.id === userId) {
+                isBanned = !user.isBanned;
+                return { ...user, isBanned: isBanned };
+            }
+            return user;
+        });
+    });
+    
+    const user = users.find(u => u.id === userId);
+    if (user) {
+        showToast(`User ${user.username} has been ${user.isBanned ? 'unbanned' : 'banned'}.`, 'success');
+    }
+  };
 
   return (
     <AppContext.Provider value={{ 
@@ -434,7 +469,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toggleFollow, showToast, searchQuery, setSearchQuery,
         updateUserProfile, updatePassword, markNotificationsAsRead,
         updateUserAvatar, toggleFavorite, deletePost, deleteComment, deleteUser,
-        sendMessage, markMessagesAsRead
+        sendMessage, markMessagesAsRead, toggleUserBan
     }}>
       {children}
     </AppContext.Provider>

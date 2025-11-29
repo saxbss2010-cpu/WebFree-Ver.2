@@ -1,3 +1,4 @@
+
 import React, { useContext, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppContext } from '../contexts/AppContext';
@@ -41,7 +42,7 @@ const PostGrid: React.FC<PostGridProps> = ({ posts }) => (
 
 const Profile: React.FC = () => {
   const { username } = useParams<{ username: string }>();
-  const { users, posts, currentUser, toggleFollow, deleteUser } = useContext(AppContext);
+  const { users, posts, currentUser, toggleFollow, deleteUser, toggleUserBan } = useContext(AppContext);
   const [activeTab, setActiveTab] = useState<'posts' | 'favorites'>('posts');
   const navigate = useNavigate();
 
@@ -70,6 +71,13 @@ const Profile: React.FC = () => {
     }
   }
 
+  const handleBanUser = () => {
+    const action = profileUser.isBanned ? 'unban' : 'ban';
+    if (window.confirm(`Are you sure you want to ${action} user ${profileUser.username}?`)) {
+        toggleUserBan(profileUser.id);
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* Profile Header Card */}
@@ -82,6 +90,11 @@ const Profile: React.FC = () => {
             <div className="relative group">
                 <div className="absolute -inset-1 bg-gradient-to-br from-accent to-purple-600 rounded-full opacity-70 blur-md group-hover:opacity-100 transition-opacity duration-500"></div>
                 <img src={profileUser.avatar} alt={profileUser.username} className="relative w-32 h-32 md:w-40 md:h-40 rounded-full object-cover border-4 border-black" />
+                {profileUser.isBanned && (
+                    <div className="absolute inset-0 bg-black/70 rounded-full flex items-center justify-center border-4 border-red-600">
+                        <span className="text-red-500 font-bold text-lg transform -rotate-12">BANNED</span>
+                    </div>
+                )}
             </div>
             
             <div className="flex-1 text-center md:text-left">
@@ -100,25 +113,36 @@ const Profile: React.FC = () => {
                                 Follows you
                             </span>
                         )}
+                        {profileUser.isBanned && (
+                            <div className="mt-2 text-red-500 font-bold uppercase tracking-widest text-sm bg-red-500/10 inline-block px-3 py-1 rounded-md border border-red-500/20">
+                                Account Banned
+                            </div>
+                        )}
                     </div>
                     
                     <div className="flex items-center gap-3">
                         {currentUser && !isOwnProfile && (
                             <button 
                                 onClick={handleFollow} 
+                                disabled={profileUser.isBanned}
                                 className={`px-6 py-2.5 text-sm font-bold rounded-xl transition-all shadow-lg transform hover:-translate-y-0.5 ${
                                     isFollowing 
                                     ? 'bg-white/10 text-white hover:bg-white/20 border border-white/5' 
-                                    : 'bg-gradient-to-r from-accent to-red-600 text-white shadow-accent/30'
+                                    : 'bg-gradient-to-r from-accent to-red-600 text-white shadow-accent/30 disabled:opacity-50 disabled:cursor-not-allowed'
                                 }`}
                             >
                                 {isFollowing ? 'Following' : 'Follow'}
                             </button>
                         )}
                         {currentUser?.role === 'admin' && !isOwnProfile && (
-                            <button onClick={handleDeleteUser} className="px-4 py-2.5 text-sm font-bold rounded-xl bg-red-900/50 text-red-200 hover:bg-red-800 transition-colors border border-red-800/50">
-                                Delete
-                            </button>
+                            <div className="flex space-x-2">
+                                <button onClick={handleBanUser} className={`px-4 py-2.5 text-sm font-bold rounded-xl transition-colors border ${profileUser.isBanned ? 'bg-green-900/50 text-green-200 hover:bg-green-800 border-green-800/50' : 'bg-orange-900/50 text-orange-200 hover:bg-orange-800 border-orange-800/50'}`}>
+                                    {profileUser.isBanned ? 'Unban' : 'Ban'}
+                                </button>
+                                <button onClick={handleDeleteUser} className="px-4 py-2.5 text-sm font-bold rounded-xl bg-red-900/50 text-red-200 hover:bg-red-800 transition-colors border border-red-800/50">
+                                    Delete
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>

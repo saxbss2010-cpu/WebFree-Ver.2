@@ -1,8 +1,9 @@
+
 import React, { useContext, useState, useMemo, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AppContext } from '../contexts/AppContext';
 import CreatePostModal from './CreatePostModal';
-import { HomeIcon, PlusCircleIcon, SearchIcon, LoginIcon, LogoutIcon, BellIcon, Cog6ToothIcon, XMarkIcon } from './icons';
+import { HomeIcon, PlusCircleIcon, SearchIcon, LoginIcon, LogoutIcon, BellIcon, Cog6ToothIcon, XMarkIcon, HeartIcon } from './icons';
 import { playNotificationSound } from '../services/audioService';
 
 const Header: React.FC = () => {
@@ -85,6 +86,9 @@ const Header: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-2 md:space-x-4">
+            <Link to="/support" aria-label="Support" className="text-gray-300 hover:text-accent transition-colors hidden sm:block" title="Support Us">
+                <HeartIcon className="w-7 h-7" />
+            </Link>
             {currentUser ? (
               <>
                 <Link to="/" aria-label="Home" className="text-gray-300 hover:text-white transition-colors hidden sm:block">

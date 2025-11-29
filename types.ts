@@ -28,6 +28,7 @@ export interface User {
   followers: string[];
   favorites: string[];
   role?: 'admin' | 'user';
+  isBanned?: boolean;
 }
 
 export interface Notification {
