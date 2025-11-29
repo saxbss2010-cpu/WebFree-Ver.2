@@ -94,22 +94,28 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                   <img src={author.avatar} alt={author.username} className="relative w-10 h-10 rounded-full object-cover ring-2 ring-black" />
               </Link>
               <div className="flex flex-col">
-                  <div className="flex items-center">
-                    <Link to={`/profile/${author.username}`} className="font-bold text-white hover:text-accent transition-colors">
+                  <div className="flex items-center flex-wrap">
+                    <Link to={`/profile/${author.username}`} className="font-bold text-white hover:text-accent transition-colors mr-2">
                         {author.username}
                     </Link>
                     {author.role === 'admin' && (
-                        <span className="ml-2 px-1.5 py-0.5 bg-accent/20 border border-accent/30 text-accent text-[10px] font-bold rounded uppercase tracking-wider">
+                        <span className="mr-2 px-1.5 py-0.5 bg-accent/20 border border-accent/30 text-accent text-[10px] font-bold rounded uppercase tracking-wider">
                         ADM
                         </span>
                     )}
                     {author.isDonor && (
-                        <span className="ml-2 px-1.5 py-0.5 bg-yellow-500/20 border border-yellow-500/30 text-yellow-500 text-[10px] font-bold rounded uppercase tracking-wider">
+                        <span className="mr-2 px-1.5 py-0.5 bg-yellow-500/20 border border-yellow-500/30 text-yellow-500 text-[10px] font-bold rounded uppercase tracking-wider">
                         DONOR
                         </span>
                     )}
                   </div>
-                  <span className="text-xs text-gray-500">{timeSince(post.timestamp)} ago</span>
+                  <div className="flex items-center space-x-2">
+                      {post.location && (
+                          <span className="text-xs text-accent font-medium">{post.location}</span>
+                      )}
+                      {post.location && <span className="text-[10px] text-gray-600">•</span>}
+                      <span className="text-xs text-gray-500">{timeSince(post.timestamp)} ago</span>
+                  </div>
               </div>
           </div>
           <div className="flex items-center gap-2">

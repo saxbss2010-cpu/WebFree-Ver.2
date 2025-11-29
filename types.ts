@@ -13,6 +13,7 @@ export interface Post {
   fileType: string;
   fileName: string;
   caption: string;
+  location?: string;
   likes: string[];
   comments: Comment[];
   timestamp: string;

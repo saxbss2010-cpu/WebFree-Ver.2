@@ -1,3 +1,4 @@
+
 import React, { useState, useContext, useCallback } from 'react';
 import { AppContext } from '../contexts/AppContext';
 import Spinner from './Spinner';
@@ -12,6 +13,7 @@ const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose }) => {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
+  const [location, setLocation] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -40,6 +42,7 @@ const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose }) => {
             fileType: file?.type || '',
             fileName: file?.name || '',
             caption: caption,
+            location: location.trim(),
         });
         setIsLoading(false);
         onClose();
@@ -56,7 +59,7 @@ const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose }) => {
           </button>
         </div>
         <form onSubmit={handleSubmit}>
-          <div className="p-6">
+          <div className="p-6 space-y-4">
             {!preview ? (
               <label htmlFor="file-upload" className="relative flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-600 hover:border-accent rounded-2xl p-10 cursor-pointer transition-all bg-black/20 hover:bg-black/40 group">
                 <div className="p-4 bg-white/5 rounded-full mb-3 group-hover:scale-110 transition-transform">
@@ -87,13 +90,27 @@ const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose }) => {
                 </button>
               </div>
             )}
-            <textarea
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              placeholder="What's on your mind?"
-              rows={4}
-              className="mt-6 block w-full bg-black/30 border border-white/10 rounded-xl p-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-transparent transition-all resize-none"
-            />
+            
+            <div>
+                 <textarea
+                  value={caption}
+                  onChange={(e) => setCaption(e.target.value)}
+                  placeholder="What's on your mind?"
+                  rows={3}
+                  className="block w-full bg-black/30 border border-white/10 rounded-xl p-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-transparent transition-all resize-none"
+                />
+            </div>
+
+            <div>
+                 <input
+                  type="text"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="Location (e.g. New York, USA)"
+                  className="block w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-transparent transition-all text-sm"
+                />
+            </div>
+
           </div>
           <div className="px-6 py-4 bg-white/5 text-right border-t border-white/5">
             <button

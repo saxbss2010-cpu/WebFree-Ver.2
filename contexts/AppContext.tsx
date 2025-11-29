@@ -61,6 +61,9 @@ interface AppContextType {
 
 export const AppContext = createContext<AppContextType>(null!);
 
+// Create a BroadcastChannel for real-time synchronization across tabs (Simulating a DB)
+const dbChannel = new BroadcastChannel('webfree_db_sync');
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [users, setUsers] = useState<User[]>(() => getStorageItem('users', getInitialUsers()));
   const [posts, setPosts] = useState<Post[]>(() => getStorageItem('posts', getInitialPosts()));
@@ -71,13 +74,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Persist to localStorage whenever state changes
   useEffect(() => setStorageItem('users', users), [users]);
   useEffect(() => setStorageItem('posts', posts), [posts]);
   useEffect(() => setStorageItem('currentUser', currentUser), [currentUser]);
   useEffect(() => setStorageItem('notifications', notifications), [notifications]);
-  // FIX: Persist messages to localStorage.
   useEffect(() => setStorageItem('messages', messages), [messages]);
 
+  // Listen for DB updates from other "Nodes" (Tabs/Windows)
+  useEffect(() => {
+    const handleSync = (event: MessageEvent) => {
+        if (event.data === 'DB_UPDATE') {
+            // Refresh state from storage to sync with other users/tabs
+            setUsers(getStorageItem('users', getInitialUsers()));
+            setPosts(getStorageItem('posts', getInitialPosts()));
+            setNotifications(getStorageItem('notifications', []));
+            setMessages(getStorageItem('messages', getInitialMessages()));
+            
+            // Note: We don't sync currentUser automatically to allow testing different users in different tabs
+        }
+    };
+    dbChannel.addEventListener('message', handleSync);
+    return () => dbChannel.removeEventListener('message', handleSync);
+  }, []);
+
+  // Helper to broadcast changes to the "network"
+  const broadcastUpdate = () => {
+    dbChannel.postMessage('DB_UPDATE');
+  };
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
@@ -122,8 +146,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       isBanned: false,
       isDonor: false,
     };
-    setUsers(prev => [...prev, newUser]);
+    const newUsers = [...users, newUser];
+    setUsers(newUsers);
     setCurrentUser(newUser);
+    
+    // Immediate persist for signup to ensure other tabs see the new user
+    setStorageItem('users', newUsers); 
+    broadcastUpdate();
+
     showToast('Account created successfully!', 'success');
     return true;
   };
@@ -141,10 +171,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       comments: [],
       timestamp: new Date().toISOString(),
     };
-    setPosts(prev => [newPost, ...prev]);
+    const updatedPosts = [newPost, ...posts];
+    setPosts(updatedPosts);
 
     // Create notifications for followers
     const author = users.find(u => u.id === currentUser.id);
+    let updatedNotifications = [...notifications];
+    
     if(author?.followers) {
         const newNotifications: Notification[] = author.followers.map(followerId => ({
             id: `notif_${Date.now()}_${followerId}`,
@@ -155,8 +188,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             timestamp: new Date().toISOString(),
             read: false,
         }));
-        setNotifications(prev => [...prev, ...newNotifications]);
+        updatedNotifications = [...notifications, ...newNotifications];
+        setNotifications(updatedNotifications);
     }
+    
+    // Immediate persist and broadcast
+    setStorageItem('posts', updatedPosts);
+    setStorageItem('notifications', updatedNotifications);
+    broadcastUpdate();
 
     showToast('Post created successfully!', 'success');
   };
@@ -166,8 +205,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         showToast('You must be logged in to like posts.', 'error');
         return;
     }
-    setPosts(prevPosts =>
-      prevPosts.map(post => {
+    
+    const updatedPosts = posts.map(post => {
         if (post.id === postId) {
           const isLiked = post.likes.includes(currentUser.id);
           if (!isLiked) {
@@ -179,8 +218,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           return { ...post, likes: newLikes };
         }
         return post;
-      })
-    );
+      });
+      
+    setPosts(updatedPosts);
+    setStorageItem('posts', updatedPosts);
+    broadcastUpdate();
   };
   
   const toggleFavorite = (postId: string) => {
@@ -188,28 +230,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast('You must be logged in to favorite posts.', 'error');
       return;
     }
-    setUsers(prevUsers => {
-      const userIndex = prevUsers.findIndex(u => u.id === currentUser.id);
-      if (userIndex === -1) {
-        return prevUsers;
-      }
+    
+    const userIndex = users.findIndex(u => u.id === currentUser.id);
+    if (userIndex === -1) return;
 
-      const userToUpdate = prevUsers[userIndex];
-      const isFavorited = userToUpdate.favorites.includes(postId);
+    const userToUpdate = users[userIndex];
+    const isFavorited = userToUpdate.favorites.includes(postId);
 
-      const updatedUser = {
-        ...userToUpdate,
-        favorites: isFavorited
-          ? userToUpdate.favorites.filter(id => id !== postId)
-          : [...userToUpdate.favorites, postId],
-      };
+    const updatedUser = {
+    ...userToUpdate,
+    favorites: isFavorited
+        ? userToUpdate.favorites.filter(id => id !== postId)
+        : [...userToUpdate.favorites, postId],
+    };
 
-      const newUsers = [...prevUsers];
-      newUsers[userIndex] = updatedUser;
+    const newUsers = [...users];
+    newUsers[userIndex] = updatedUser;
 
-      setCurrentUser(updatedUser);
-      return newUsers;
-    });
+    setUsers(newUsers);
+    setCurrentUser(updatedUser);
+    
+    setStorageItem('users', newUsers);
+    broadcastUpdate();
   };
 
   const addComment = (postId: string, text: string) => {
@@ -223,11 +265,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         text,
         timestamp: new Date().toISOString(),
     };
-    setPosts(prevPosts =>
-      prevPosts.map(post =>
+    
+    const updatedPosts = posts.map(post =>
         post.id === postId ? { ...post, comments: [...post.comments, newComment].sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()) } : post
-      )
     );
+    
+    setPosts(updatedPosts);
+    setStorageItem('posts', updatedPosts);
+    broadcastUpdate();
   };
 
   const toggleFollow = useCallback((userIdToFollow: string) => {
@@ -237,38 +282,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     if (currentUser.id === userIdToFollow) return;
 
-    setUsers(prevUsers => {
-        const newUsers = [...prevUsers];
-        const userIndex = newUsers.findIndex(u => u.id === currentUser.id);
-        const targetUserIndex = newUsers.findIndex(u => u.id === userIdToFollow);
+    const newUsers = [...users];
+    const userIndex = newUsers.findIndex(u => u.id === currentUser.id);
+    const targetUserIndex = newUsers.findIndex(u => u.id === userIdToFollow);
 
-        if(userIndex === -1 || targetUserIndex === -1) return prevUsers;
+    if(userIndex === -1 || targetUserIndex === -1) return;
 
-        const isFollowing = newUsers[userIndex].following.includes(userIdToFollow);
-        
-        if (!isFollowing) {
-            playFollowSound();
-        }
+    const isFollowing = newUsers[userIndex].following.includes(userIdToFollow);
+    
+    if (!isFollowing) {
+        playFollowSound();
+    }
 
-        if(isFollowing) {
-            newUsers[userIndex].following = newUsers[userIndex].following.filter(id => id !== userIdToFollow);
-            newUsers[targetUserIndex].followers = newUsers[targetUserIndex].followers.filter(id => id !== currentUser.id);
-        } else {
-            newUsers[userIndex].following.push(userIdToFollow);
-            newUsers[targetUserIndex].followers.push(currentUser.id);
-        }
-        
-        setCurrentUser(newUsers[userIndex]);
+    if(isFollowing) {
+        newUsers[userIndex].following = newUsers[userIndex].following.filter(id => id !== userIdToFollow);
+        newUsers[targetUserIndex].followers = newUsers[targetUserIndex].followers.filter(id => id !== currentUser.id);
+    } else {
+        newUsers[userIndex].following.push(userIdToFollow);
+        newUsers[targetUserIndex].followers.push(currentUser.id);
+    }
+    
+    setUsers(newUsers);
+    setCurrentUser(newUsers[userIndex]);
+    
+    setStorageItem('users', newUsers);
+    broadcastUpdate();
 
-        return newUsers;
-    });
-
-  }, [currentUser, showToast]);
+  }, [currentUser, users, showToast]);
 
   const updateUserProfile = (data: { username: string, email: string }) => {
     if (!currentUser) return false;
 
-    // Check if new username or email is already taken by another user
     if (users.some(u => u.id !== currentUser.id && (u.username === data.username || u.email === data.email))) {
         showToast('Username or email is already taken.', 'error');
         return false;
@@ -280,6 +324,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const updatedCurrentUser = updatedUsers.find(u => u.id === currentUser.id)!;
     setCurrentUser(updatedCurrentUser);
 
+    setStorageItem('users', updatedUsers);
+    broadcastUpdate();
+    
     showToast('Profile updated successfully!', 'success');
     return true;
   };
@@ -293,6 +340,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
      const updatedCurrentUser = updatedUsers.find(u => u.id === currentUser.id)!;
      setCurrentUser(updatedCurrentUser);
  
+     setStorageItem('users', updatedUsers);
+     broadcastUpdate();
+
      showToast('Password updated successfully!', 'success');
      return true;
   };
@@ -305,15 +355,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     
     const updatedCurrentUser = updatedUsers.find(u => u.id === currentUser.id)!;
     setCurrentUser(updatedCurrentUser);
+    
+    setStorageItem('users', updatedUsers);
+    broadcastUpdate();
   };
 
   const markNotificationsAsRead = () => {
     if (!currentUser) return;
-    setNotifications(prev => 
-        prev.map(n => 
-            n.recipientId === currentUser.id ? { ...n, read: true } : n
-        )
+    const updatedNotifications = notifications.map(n => 
+        n.recipientId === currentUser.id ? { ...n, read: true } : n
     );
+    setNotifications(updatedNotifications);
+    
+    setStorageItem('notifications', updatedNotifications);
+    broadcastUpdate();
   };
   
   const deletePost = (postId: string) => {
@@ -321,7 +376,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast('You do not have permission to delete posts.', 'error');
       return;
     }
-    setPosts(prev => prev.filter(p => p.id !== postId));
+    const updatedPosts = posts.filter(p => p.id !== postId);
+    setPosts(updatedPosts);
+    
+    setStorageItem('posts', updatedPosts);
+    broadcastUpdate();
+    
     showToast('Post deleted successfully.', 'success');
   };
 
@@ -330,21 +390,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast('You do not have permission to delete comments.', 'error');
       return;
     }
-    setPosts(prevPosts =>
-      prevPosts.map(post => {
+    const updatedPosts = posts.map(post => {
         if (post.id === postId) {
           return { ...post, comments: post.comments.filter(c => c.id !== commentId) };
         }
         return post;
-      })
-    );
+    });
+    setPosts(updatedPosts);
+    
+    setStorageItem('posts', updatedPosts);
+    broadcastUpdate();
+    
     showToast('Comment deleted successfully.', 'success');
   };
 
   const deleteUser = (userId: string) => {
     if (!currentUser) return;
 
-    // Allow if admin or if deleting self
     if (currentUser.role !== 'admin' && currentUser.id !== userId) {
       showToast('You do not have permission to delete this user.', 'error');
       return;
@@ -358,20 +420,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const postIdsToDelete = posts.filter(p => p.userId === userId).map(p => p.id);
 
-    // Remove user's posts, and their likes/comments from other posts
-    setPosts(prevPosts =>
-      prevPosts
+    const updatedPosts = posts
         .filter(p => p.userId !== userId)
         .map(p => ({
           ...p,
           likes: p.likes.filter(likeUserId => likeUserId !== userId),
           comments: p.comments.filter(comment => comment.userId !== userId),
-        }))
-    );
+        }));
+    setPosts(updatedPosts);
 
-    // Remove user and update following/followers/favorites on other users
-    setUsers(prevUsers => {
-      const newUsers = prevUsers
+    const updatedUsers = users
         .filter(u => u.id !== userId)
         .map(u => ({
           ...u,
@@ -379,25 +437,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           followers: u.followers.filter(id => id !== userId),
           favorites: u.favorites.filter(postId => !postIdsToDelete.includes(postId)),
         }));
-      
-      // Update currentUser state if their own profile data (e.g. following list) changed
-      // Logic for admin deleting another user
-      if (currentUser.id !== userId) {
-        const updatedCurrentUser = newUsers.find(u => u.id === currentUser.id);
+    setUsers(updatedUsers);
+
+    const updatedNotifications = notifications.filter(n => n.actorId !== userId && n.recipientId !== userId);
+    setNotifications(updatedNotifications);
+
+    const updatedMessages = messages.filter(m => m.senderId !== userId && m.recipientId !== userId);
+    setMessages(updatedMessages);
+    
+    if (currentUser.id !== userId) {
+        const updatedCurrentUser = updatedUsers.find(u => u.id === currentUser.id);
         if (updatedCurrentUser) {
-          if (JSON.stringify(updatedCurrentUser) !== JSON.stringify(prevUsers.find(u => u.id === currentUser.id))) {
             setCurrentUser(updatedCurrentUser);
-          }
         }
-      }
-      return newUsers;
-    });
+    }
 
-    // Remove notifications involving the user
-    setNotifications(prev => prev.filter(n => n.actorId !== userId && n.recipientId !== userId));
-
-    // Remove messages involving the user
-    setMessages(prev => prev.filter(m => m.senderId !== userId && m.recipientId !== userId));
+    setStorageItem('users', updatedUsers);
+    setStorageItem('posts', updatedPosts);
+    setStorageItem('notifications', updatedNotifications);
+    setStorageItem('messages', updatedMessages);
+    broadcastUpdate();
 
     if (currentUser.id === userId) {
       setCurrentUser(null);
@@ -421,19 +480,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       timestamp: new Date().toISOString(),
       read: false,
     };
-    setMessages(prev => [...prev, newMessage]);
+    const updatedMessages = [...messages, newMessage];
+    setMessages(updatedMessages);
+    
+    setStorageItem('messages', updatedMessages);
+    broadcastUpdate();
   };
 
   // FIX: Implement markMessagesAsRead function.
   const markMessagesAsRead = (senderId: string) => {
     if (!currentUser) return;
-    setMessages(prev =>
-      prev.map(m =>
+    const updatedMessages = messages.map(m =>
         m.recipientId === currentUser.id && m.senderId === senderId && !m.read
           ? { ...m, read: true }
           : m
-      )
-    );
+      );
+    setMessages(updatedMessages);
+    
+    setStorageItem('messages', updatedMessages);
+    broadcastUpdate();
   };
   
   const toggleUserBan = (userId: string) => {
@@ -448,15 +513,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     
     let isBanned = false;
     
-    setUsers(prevUsers => {
-        return prevUsers.map(user => {
+    const updatedUsers = users.map(user => {
             if (user.id === userId) {
                 isBanned = !user.isBanned;
                 return { ...user, isBanned: isBanned };
             }
             return user;
         });
-    });
+    setUsers(updatedUsers);
+    
+    setStorageItem('users', updatedUsers);
+    broadcastUpdate();
     
     const user = users.find(u => u.id === userId);
     if (user) {
@@ -472,15 +539,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     
     let isDonor = false;
     
-    setUsers(prevUsers => {
-        return prevUsers.map(user => {
+    const updatedUsers = users.map(user => {
             if (user.id === userId) {
                 isDonor = !user.isDonor;
                 return { ...user, isDonor: isDonor };
             }
             return user;
         });
-    });
+    setUsers(updatedUsers);
+    
+    setStorageItem('users', updatedUsers);
+    broadcastUpdate();
     
     const user = users.find(u => u.id === userId);
     if (user) {
