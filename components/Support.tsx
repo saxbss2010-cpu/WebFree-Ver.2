@@ -1,8 +1,23 @@
 
-import React from 'react';
+import React, { useContext } from 'react';
 import { HeartIcon } from './icons';
+import { AppContext } from '../contexts/AppContext';
 
 const Support: React.FC = () => {
+  const { showToast } = useContext(AppContext);
+
+  const handleCryptoDonation = () => {
+    const btcAddress = "bc1qruv8200hh3rrdghjaq5djwwzrsvsv9phvnkl2c";
+    navigator.clipboard.writeText(btcAddress)
+      .then(() => {
+        showToast(`BTC Address copied: ${btcAddress}`, 'success');
+      })
+      .catch((err) => {
+        console.error('Failed to copy: ', err);
+        showToast('Failed to copy BTC address.', 'error');
+      });
+  };
+
   return (
     <div className="max-w-2xl mx-auto pt-10 px-4">
       <div className="bg-glass-gradient backdrop-blur-xl rounded-3xl border border-glass-border p-8 text-center shadow-2xl relative overflow-hidden group">
@@ -24,13 +39,12 @@ const Support: React.FC = () => {
                 Your contribution helps us keep the servers running, develop new features, and stay ad-free.
             </p>
 
-            <div className="space-y-4">
-                <button className="w-full sm:w-auto py-4 px-10 rounded-xl text-lg font-bold text-white bg-gradient-to-r from-accent to-red-600 hover:from-accent-hover hover:to-red-700 shadow-lg shadow-accent/20 transition-all transform hover:scale-[1.02]">
-                    Donate via Patreon
-                </button>
-                <div className="block"></div>
-                <button className="w-full sm:w-auto py-4 px-10 rounded-xl text-lg font-bold text-white bg-[#0070BA] hover:bg-[#003087] shadow-lg shadow-blue-500/20 transition-all transform hover:scale-[1.02]">
-                    Donate via PayPal
+            <div className="flex flex-col gap-4 items-center w-full max-w-md mx-auto">
+                <button 
+                    onClick={handleCryptoDonation}
+                    className="w-full py-4 px-10 rounded-xl text-lg font-bold text-white bg-gradient-to-r from-[#F7931A] to-[#d67b0e] hover:from-[#d67b0e] hover:to-[#b86608] shadow-lg shadow-[#F7931A]/20 transition-all transform hover:scale-[1.02]"
+                >
+                    Donate in Crypto - BTC
                 </button>
             </div>
             

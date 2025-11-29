@@ -76,6 +76,11 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ post, onClose }) => {
                             ADM
                             </span>
                         )}
+                        {author.isDonor && (
+                            <span className="mr-2 px-1 py-px bg-yellow-600 text-white text-[9px] font-bold rounded uppercase align-middle">
+                            DONOR
+                            </span>
+                        )}
                         {post.caption}
                     </p>
                 </div>
@@ -101,6 +106,11 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ post, onClose }) => {
                                 {commentAuthor.role === 'admin' && (
                                     <span className="mr-2 px-1 py-px bg-red-600 text-white text-[9px] font-bold rounded uppercase align-middle">
                                     ADM
+                                    </span>
+                                )}
+                                {commentAuthor.isDonor && (
+                                    <span className="mr-2 px-1 py-px bg-yellow-600 text-white text-[9px] font-bold rounded uppercase align-middle">
+                                    DONOR
                                     </span>
                                 )}
                                 {comment.text}

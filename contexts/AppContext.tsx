@@ -56,6 +56,7 @@ interface AppContextType {
   sendMessage: (recipientId: string, text: string) => void;
   markMessagesAsRead: (senderId: string) => void;
   toggleUserBan: (userId: string) => void;
+  toggleUserDonor: (userId: string) => void;
 }
 
 export const AppContext = createContext<AppContextType>(null!);
@@ -119,6 +120,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       favorites: [],
       role: 'user',
       isBanned: false,
+      isDonor: false,
     };
     setUsers(prev => [...prev, newUser]);
     setCurrentUser(newUser);
@@ -462,6 +464,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const toggleUserDonor = (userId: string) => {
+    if (!currentUser || currentUser.role !== 'admin') {
+         showToast('Unauthorized', 'error');
+         return;
+    }
+    
+    let isDonor = false;
+    
+    setUsers(prevUsers => {
+        return prevUsers.map(user => {
+            if (user.id === userId) {
+                isDonor = !user.isDonor;
+                return { ...user, isDonor: isDonor };
+            }
+            return user;
+        });
+    });
+    
+    const user = users.find(u => u.id === userId);
+    if (user) {
+        showToast(`User ${user.username} ${isDonor ? 'is now a donor' : 'is no longer a donor'}.`, 'success');
+    }
+  };
+
   return (
     <AppContext.Provider value={{ 
         currentUser, users, posts, notifications, toast, messages,
@@ -469,7 +495,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toggleFollow, showToast, searchQuery, setSearchQuery,
         updateUserProfile, updatePassword, markNotificationsAsRead,
         updateUserAvatar, toggleFavorite, deletePost, deleteComment, deleteUser,
-        sendMessage, markMessagesAsRead, toggleUserBan
+        sendMessage, markMessagesAsRead, toggleUserBan, toggleUserDonor
     }}>
       {children}
     </AppContext.Provider>

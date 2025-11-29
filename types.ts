@@ -29,6 +29,7 @@ export interface User {
   favorites: string[];
   role?: 'admin' | 'user';
   isBanned?: boolean;
+  isDonor?: boolean;
 }
 
 export interface Notification {

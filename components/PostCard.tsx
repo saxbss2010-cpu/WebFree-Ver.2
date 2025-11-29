@@ -1,3 +1,4 @@
+
 import React, { useContext, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { AppContext } from '../contexts/AppContext';
@@ -100,6 +101,11 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                     {author.role === 'admin' && (
                         <span className="ml-2 px-1.5 py-0.5 bg-accent/20 border border-accent/30 text-accent text-[10px] font-bold rounded uppercase tracking-wider">
                         ADM
+                        </span>
+                    )}
+                    {author.isDonor && (
+                        <span className="ml-2 px-1.5 py-0.5 bg-yellow-500/20 border border-yellow-500/30 text-yellow-500 text-[10px] font-bold rounded uppercase tracking-wider">
+                        DONOR
                         </span>
                     )}
                   </div>

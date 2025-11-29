@@ -42,7 +42,7 @@ const PostGrid: React.FC<PostGridProps> = ({ posts }) => (
 
 const Profile: React.FC = () => {
   const { username } = useParams<{ username: string }>();
-  const { users, posts, currentUser, toggleFollow, deleteUser, toggleUserBan } = useContext(AppContext);
+  const { users, posts, currentUser, toggleFollow, deleteUser, toggleUserBan, toggleUserDonor } = useContext(AppContext);
   const [activeTab, setActiveTab] = useState<'posts' | 'favorites'>('posts');
   const navigate = useNavigate();
 
@@ -78,6 +78,13 @@ const Profile: React.FC = () => {
     }
   }
 
+  const handleToggleDonor = () => {
+    const action = profileUser.isDonor ? 'remove donor status from' : 'set as donor';
+    if (window.confirm(`Are you sure you want to ${action} user ${profileUser.username}?`)) {
+        toggleUserDonor(profileUser.id);
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* Profile Header Card */}
@@ -105,6 +112,11 @@ const Profile: React.FC = () => {
                             {profileUser.role === 'admin' && (
                                 <span className="px-2 py-0.5 bg-accent/20 border border-accent/40 text-accent text-xs font-bold rounded uppercase tracking-wider shadow-sm shadow-accent/10">
                                     Admin
+                                </span>
+                            )}
+                            {profileUser.isDonor && (
+                                <span className="px-2 py-0.5 bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 text-xs font-bold rounded uppercase tracking-wider shadow-sm shadow-yellow-500/10">
+                                    Donor
                                 </span>
                             )}
                         </div>
@@ -135,9 +147,12 @@ const Profile: React.FC = () => {
                             </button>
                         )}
                         {currentUser?.role === 'admin' && !isOwnProfile && (
-                            <div className="flex space-x-2">
+                            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
                                 <button onClick={handleBanUser} className={`px-4 py-2.5 text-sm font-bold rounded-xl transition-colors border ${profileUser.isBanned ? 'bg-green-900/50 text-green-200 hover:bg-green-800 border-green-800/50' : 'bg-orange-900/50 text-orange-200 hover:bg-orange-800 border-orange-800/50'}`}>
                                     {profileUser.isBanned ? 'Unban' : 'Ban'}
+                                </button>
+                                <button onClick={handleToggleDonor} className={`px-4 py-2.5 text-sm font-bold rounded-xl transition-colors border ${profileUser.isDonor ? 'bg-gray-800/50 text-gray-200 hover:bg-gray-700 border-gray-700/50' : 'bg-yellow-900/50 text-yellow-200 hover:bg-yellow-800 border-yellow-800/50'}`}>
+                                    {profileUser.isDonor ? 'Remove Donor' : 'Mark Donor'}
                                 </button>
                                 <button onClick={handleDeleteUser} className="px-4 py-2.5 text-sm font-bold rounded-xl bg-red-900/50 text-red-200 hover:bg-red-800 transition-colors border border-red-800/50">
                                     Delete
