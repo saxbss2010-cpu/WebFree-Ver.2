@@ -7,7 +7,7 @@ import { HomeIcon, PlusCircleIcon, SearchIcon, LoginIcon, LogoutIcon, BellIcon, 
 import { playNotificationSound } from '../services/audioService';
 
 const Header: React.FC = () => {
-  const { currentUser, logout, searchQuery, setSearchQuery, notifications } = useContext(AppContext);
+  const { currentUser, logout, searchQuery, setSearchQuery, notifications, users } = useContext(AppContext);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const navigate = useNavigate();
@@ -30,6 +30,12 @@ const Header: React.FC = () => {
     prevUnreadCountRef.current = unreadNotificationsCount; 
   }, [unreadNotificationsCount]);
 
+  const filteredUsers = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    return users.filter(user => 
+      user.username.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [users, searchQuery]);
 
   return (
     <>
@@ -66,10 +72,13 @@ const Header: React.FC = () => {
                     type="text"
                     value={searchQuery}
                     onFocus={() => setIsSearchFocused(true)}
-                    onBlur={() => setIsSearchFocused(false)}
+                    onBlur={() => {
+                        // Delay blurring to allow click on dropdown items
+                        setTimeout(() => setIsSearchFocused(false), 200);
+                    }}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full bg-transparent text-white placeholder-gray-500 py-2.5 px-1 focus:outline-none font-medium tracking-wide text-sm md:text-base transition-all"
-                    placeholder={isSearchFocused ? "Search posts, people, or tags..." : "Search WebFree..."}
+                    placeholder={isSearchFocused ? "Search posts, people..." : "Search WebFree..."}
                 />
 
                 {/* Clear Button - Animate in/out */}
@@ -83,6 +92,42 @@ const Header: React.FC = () => {
                     </button>
                 </div>
             </div>
+
+            {/* Search Results Dropdown */}
+            {isSearchFocused && searchQuery && (
+                <div className="absolute top-full left-4 right-4 mt-2 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden max-h-96 overflow-y-auto z-20">
+                    {filteredUsers.length > 0 ? (
+                        <>
+                            <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider bg-black/20">Accounts</div>
+                            {filteredUsers.map(user => (
+                                <Link 
+                                    key={user.id} 
+                                    to={`/profile/${user.username}`}
+                                    className="flex items-center px-4 py-3 hover:bg-white/10 transition-colors border-b border-white/5 last:border-0"
+                                    onClick={() => {
+                                        setSearchQuery('');
+                                        setIsSearchFocused(false);
+                                    }}
+                                >
+                                    <img src={user.avatar} alt={user.username} className="w-10 h-10 rounded-full object-cover mr-3 ring-1 ring-white/10" />
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-white text-sm flex items-center gap-1">
+                                            {user.username}
+                                            {user.role === 'admin' && <span className="text-[10px] bg-red-600/20 text-red-400 border border-red-600/30 px-1 rounded font-bold">ADM</span>}
+                                            {user.isDonor && <span className="text-[10px] bg-yellow-600/20 text-yellow-400 border border-yellow-600/30 px-1 rounded font-bold">DONOR</span>}
+                                        </span>
+                                        <span className="text-gray-500 text-xs">{user.followers.length} followers</span>
+                                    </div>
+                                </Link>
+                            ))}
+                        </>
+                    ) : (
+                         <div className="p-4 text-center text-gray-500 text-sm">
+                            No users found.
+                         </div>
+                    )}
+                </div>
+            )}
           </div>
 
           <div className="flex items-center space-x-2 md:space-x-4">
